@@ -166,41 +166,34 @@
                 };
 
                 const rowData = [
-                  sheetName, // Box No (Sheet name)
-                  getValue(0), // Numbering
-                  getValue(2), // Plate No
-                  getValue(3), // Owner
-                  getValue(6), // Address
-                  getValue(11), // Received By
+                  sheetName,
+                  getValue(0),
+                  getValue(2),
+                  getValue(3),
+                  getValue(6),
+                  getValue(11),
                 ];
 
                 if (rowData[1] && !isNaN(rowData[1])) {
                   allRows.push(rowData);
+                  appendRowToTable(rowData);
                 }
               }
             }
           }
 
-          renderTable();
           this.value = "";
+          if (allRows.length) {
+            document.getElementById("excelTable").style.display = "table";
+            document.getElementById("filterRow").style.display = "grid";
+          }
         });
 
-      function renderTable() {
+      function appendRowToTable(rowData) {
         const tbody = document.getElementById("excelBody");
-        const table = document.getElementById("excelTable");
-        const filterRow = document.getElementById("filterRow");
-        tbody.innerHTML = "";
-
-        allRows.forEach((rowData) => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = rowData.map((val) => `<td>${val}</td>`).join("");
-          tbody.appendChild(tr);
-        });
-
-        if (allRows.length) {
-          table.style.display = "table";
-          filterRow.style.display = "grid";
-        }
+        const tr = document.createElement("tr");
+        tr.innerHTML = rowData.map((val) => `<td>${val}</td>`).join("");
+        tbody.appendChild(tr);
       }
 
       function filterColumn(colIndex) {
