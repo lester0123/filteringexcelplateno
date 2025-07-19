@@ -13,47 +13,33 @@
       body {
         font-family: "Segoe UI", sans-serif;
         padding: 2rem;
-        background-color: #f4f7fc;
+        background: linear-gradient(to right, #f7f9fc, #e1ecf9);
         color: #333;
       }
 
       h2 {
         text-align: center;
         margin-bottom: 1.5rem;
+        color: #2d5aa7;
       }
 
       input[type="file"],
       #printBtn {
         display: block;
-        margin: 0.5rem auto;
-        padding: 0.5rem 1rem;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        background-color: #fff;
-        cursor: pointer;
-        font-size: 15px;
-        transition: background-color 0.3s ease;
-      }
-
-      #printBtn {
-        background-color: #28a745;
-        color: white;
-        border: none;
-      }
-
-      #printBtn:hover {
-        background-color: #218838;
-      }
-
-      #searchInput {
-        width: 100%;
-        max-width: 500px;
         margin: 1rem auto;
-        padding: 10px;
-        font-size: 16px;
+        padding: 0.75rem 1.5rem;
+        border: none;
         border-radius: 8px;
-        border: 1px solid #ccc;
-        display: none;
+        background-color: #007bff;
+        color: white;
+        font-size: 15px;
+        cursor: pointer;
+        transition: 0.3s ease;
+      }
+
+      input[type="file"]:hover,
+      #printBtn:hover {
+        background-color: #0056b3;
       }
 
       table {
@@ -63,7 +49,7 @@
         background-color: #fff;
         border-radius: 12px;
         overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
       }
 
       th,
@@ -80,11 +66,21 @@
       }
 
       tr:hover {
-        background-color: #f1f1f1;
+        background-color: #f2f2f2;
       }
 
-      #excelTable {
-        display: none;
+      .filter-row {
+        margin-top: 1rem;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+      }
+
+      .filter-row input {
+        padding: 10px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        font-size: 14px;
       }
 
       @media print {
@@ -103,23 +99,33 @@
           top: 0;
           width: 100%;
         }
+
+        .filter-row {
+          display: none !important;
+        }
       }
     </style>
   </head>
   <body>
-    <h2>📥 Excel Uploader & Plate Filter</h2>
-    <input type="file" id="excelFile" accept=".xlsx, .xls" multiple />
-    <input
-      type="text"
-      id="searchInput"
-      placeholder="🔍 Search anything..."
-      onkeyup="filterTable()"
-    />
+    <h2>📥 Excel Uploader & Filter Table</h2>
 
+    <input type="file" id="excelFile" accept=".xlsx, .xls" multiple />
     <button id="printBtn" onclick="printTable()">🖨️ Print Table</button>
 
+    <div class="filter-row" id="filterRow" style="display: none">
+      <input type="text" oninput="filterColumn(0)" placeholder="🔍 Numbering" />
+      <input type="text" oninput="filterColumn(1)" placeholder="🔍 Plate No" />
+      <input type="text" oninput="filterColumn(2)" placeholder="🔍 Owner" />
+      <input type="text" oninput="filterColumn(3)" placeholder="🔍 Address" />
+      <input
+        type="text"
+        oninput="filterColumn(4)"
+        placeholder="🔍 Received By"
+      />
+    </div>
+
     <div id="printSection">
-      <table id="excelTable">
+      <table id="excelTable" style="display: none">
         <thead>
           <tr>
             <th>Numbering</th>
@@ -134,76 +140,76 @@
     </div>
 
     <script>
-      let processedFiles = new Set();
+      let allRows = [];
 
-      documents
+      document
         .getElementById("excelFile")
         .addEventListener("change", async function (e) {
           const files = Array.from(e.target.files);
           if (!files.length) return;
 
-          const tbody = document.getElementById("excelBody");
-
           for (const file of files) {
-            if (processedFiles.has(file.name)) continue;
-
             const data = await file.arrayBuffer();
-            const workbook = XLSX.read(new Uint8Array(data), { type: "array" });
+            const workbook = XLSX.read(data, { type: "array" });
 
             for (const sheetName of workbook.SheetNames) {
               const sheet = workbook.Sheets[sheetName];
               const range = XLSX.utils.decode_range(sheet["!ref"]);
 
               for (let row = 3; row <= range.e.r; row++) {
-                const cellA = sheet[XLSX.utils.encode_cell({ c: 0, r: row })];
-                const cellC = sheet[XLSX.utils.encode_cell({ c: 2, r: row })];
-                const cellD = sheet[XLSX.utils.encode_cell({ c: 3, r: row })];
-                const cellG = sheet[XLSX.utils.encode_cell({ c: 6, r: row })];
-                const cellL = sheet[XLSX.utils.encode_cell({ c: 11, r: row })];
+                const getValue = (col) => {
+                  const cell =
+                    sheet[XLSX.utils.encode_cell({ c: col, r: row })];
+                  return cell ? cell.v : "";
+                };
 
-                const numbering = cellA ? cellA.v : null;
-                if (numbering === null || isNaN(numbering)) continue;
+                const rowData = [
+                  getValue(0), // Numbering
+                  getValue(2), // Plate No
+                  getValue(3), // Owner
+                  getValue(6), // Address
+                  getValue(11), // Received By
+                ];
 
-                const tr = document.createElement("tr");
-                tr.innerHTML = `
-                  <td>${numbering}</td>
-                  <td>${cellC ? cellC.v : ""}</td>
-                  <td>${cellD ? cellD.v : ""}</td>
-                  <td>${cellG ? cellG.v : ""}</td>
-                  <td>${cellL ? cellL.v : ""}</td>
-                `;
-                tbody.appendChild(tr);
+                if (rowData[0] && !isNaN(rowData[0])) {
+                  allRows.push(rowData);
+                }
               }
             }
-
-            processedFiles.add(file.name);
           }
 
-          const table = document.getElementById("excelTable");
-          const searchBox = document.getElementById("searchInput");
-
-          if (tbody.children.length === 0) {
-            table.style.display = "none";
-            searchBox.style.display = "none";
-            alert("No valid data found.");
-          } else {
-            table.style.display = "table";
-            searchBox.style.display = "block";
-          }
-
-          this.value = "";
+          renderTable();
+          this.value = ""; // Clear file input
         });
 
-      function filterTable() {
-        const input = document
-          .getElementById("searchInput")
-          .value.trim()
-          .toLowerCase();
+      function renderTable() {
+        const tbody = document.getElementById("excelBody");
+        const table = document.getElementById("excelTable");
+        const filterRow = document.getElementById("filterRow");
+        tbody.innerHTML = "";
+
+        allRows.forEach((rowData) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = rowData.map((val) => `<td>${val}</td>`).join("");
+          tbody.appendChild(tr);
+        });
+
+        if (allRows.length) {
+          table.style.display = "table";
+          filterRow.style.display = "grid";
+        }
+      }
+
+      function filterColumn(colIndex) {
+        const filterVal = document
+          .querySelectorAll(".filter-row input")
+          [colIndex].value.toLowerCase();
         const rows = document.querySelectorAll("#excelBody tr");
 
         rows.forEach((row) => {
-          const text = row.textContent.replace(/\s+/g, " ").toLowerCase();
-          row.style.display = text.includes(input) ? "" : "none";
+          const cell = row.cells[colIndex];
+          const text = cell.textContent.toLowerCase();
+          row.style.display = text.includes(filterVal) ? "" : "none";
         });
       }
 
