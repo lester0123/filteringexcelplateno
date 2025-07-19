@@ -4,7 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Excel Upload & Filter</title>
+
+    <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
     <style>
       * {
         box-sizing: border-box;
@@ -24,7 +29,7 @@
       }
 
       input[type="file"],
-      #printBtn {
+      #pdfBtn {
         display: block;
         margin: 1rem auto;
         padding: 0.75rem 1.5rem;
@@ -38,7 +43,7 @@
       }
 
       input[type="file"]:hover,
-      #printBtn:hover {
+      #pdfBtn:hover {
         background-color: #0056b3;
       }
 
@@ -56,7 +61,7 @@
       td {
         padding: 12px 16px;
         border-bottom: 1px solid #eee;
-        text-align: left;
+        text-align: center;
       }
 
       th {
@@ -82,35 +87,13 @@
         border: 1px solid #ccc;
         font-size: 14px;
       }
-
-      @media print {
-        body * {
-          visibility: hidden;
-        }
-
-        #printSection,
-        #printSection * {
-          visibility: visible;
-        }
-
-        #printSection {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-        }
-
-        .filter-row {
-          display: none !important;
-        }
-      }
     </style>
   </head>
   <body>
     <h2>📥 Excel Uploader & Filter Table (With Box Number)</h2>
 
     <input type="file" id="excelFile" accept=".xlsx, .xls" multiple />
-    <button id="printBtn" onclick="printTable()">🖨️ Print Table</button>
+    <button id="pdfBtn" onclick="downloadPDF()">⬇️ Download PDF</button>
 
     <div class="filter-row" id="filterRow" style="display: none">
       <input type="text" oninput="filterColumn(0)" placeholder="🔍 Box No" />
@@ -125,21 +108,19 @@
       />
     </div>
 
-    <div id="printSection">
-      <table id="excelTable" style="display: none">
-        <thead>
-          <tr>
-            <th>Box No</th>
-            <th>Numbering</th>
-            <th>Plate No</th>
-            <th>Owner</th>
-            <th>Address</th>
-            <th>Received By</th>
-          </tr>
-        </thead>
-        <tbody id="excelBody"></tbody>
-      </table>
-    </div>
+    <table id="excelTable" style="display: none">
+      <thead>
+        <tr>
+          <th>Box No</th>
+          <th>Numbering</th>
+          <th>Plate No</th>
+          <th>Owner</th>
+          <th>Address</th>
+          <th>Received By</th>
+        </tr>
+      </thead>
+      <tbody id="excelBody"></tbody>
+    </table>
 
     <script>
       let allRows = [];
@@ -149,6 +130,8 @@
         .addEventListener("change", async function (e) {
           const files = Array.from(e.target.files);
           if (!files.length) return;
+
+          allRows = [];
 
           for (const file of files) {
             const data = await file.arrayBuffer();
@@ -209,8 +192,52 @@
         });
       }
 
-      function printTable() {
-        window.print();
+      function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        const table = document.getElementById("excelTable");
+        const rows = Array.from(table.querySelectorAll("tbody tr")).filter(
+          (row) => row.style.display !== "none"
+        );
+
+        const data = rows.map((tr) =>
+          Array.from(tr.children).map((td) => td.textContent)
+        );
+
+        const headers = [
+          [
+            "Box No",
+            "Numbering",
+            "Plate No",
+            "Owner",
+            "Address",
+            "Received By",
+          ],
+        ];
+
+        doc.setFontSize(14);
+        doc.text("LTO Land Transportation Office Vehicle Plate No.", 105, 15, {
+          align: "center",
+        });
+
+        doc.autoTable({
+          head: headers,
+          body: data,
+          startY: 25,
+          theme: "grid",
+          styles: {
+            halign: "center",
+            valign: "middle",
+          },
+          headStyles: {
+            fillColor: [0, 123, 255],
+            textColor: 255,
+            fontStyle: "bold",
+          },
+        });
+
+        doc.save("LTO_Plate_Report.pdf");
       }
     </script>
   </body>
