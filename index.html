@@ -72,7 +72,7 @@
       .filter-row {
         margin-top: 1rem;
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(6, 1fr);
         gap: 10px;
       }
 
@@ -107,19 +107,20 @@
     </style>
   </head>
   <body>
-    <h2>📥 Excel Uploader & Filter Table</h2>
+    <h2>📥 Excel Uploader & Filter Table (With Box Number)</h2>
 
     <input type="file" id="excelFile" accept=".xlsx, .xls" multiple />
     <button id="printBtn" onclick="printTable()">🖨️ Print Table</button>
 
     <div class="filter-row" id="filterRow" style="display: none">
-      <input type="text" oninput="filterColumn(0)" placeholder="🔍 Numbering" />
-      <input type="text" oninput="filterColumn(1)" placeholder="🔍 Plate No" />
-      <input type="text" oninput="filterColumn(2)" placeholder="🔍 Owner" />
-      <input type="text" oninput="filterColumn(3)" placeholder="🔍 Address" />
+      <input type="text" oninput="filterColumn(0)" placeholder="🔍 Box No" />
+      <input type="text" oninput="filterColumn(1)" placeholder="🔍 Numbering" />
+      <input type="text" oninput="filterColumn(2)" placeholder="🔍 Plate No" />
+      <input type="text" oninput="filterColumn(3)" placeholder="🔍 Owner" />
+      <input type="text" oninput="filterColumn(4)" placeholder="🔍 Address" />
       <input
         type="text"
-        oninput="filterColumn(4)"
+        oninput="filterColumn(5)"
         placeholder="🔍 Received By"
       />
     </div>
@@ -128,6 +129,7 @@
       <table id="excelTable" style="display: none">
         <thead>
           <tr>
+            <th>Box No</th>
             <th>Numbering</th>
             <th>Plate No</th>
             <th>Owner</th>
@@ -164,6 +166,7 @@
                 };
 
                 const rowData = [
+                  sheetName, // Box No (Sheet name)
                   getValue(0), // Numbering
                   getValue(2), // Plate No
                   getValue(3), // Owner
@@ -171,7 +174,7 @@
                   getValue(11), // Received By
                 ];
 
-                if (rowData[0] && !isNaN(rowData[0])) {
+                if (rowData[1] && !isNaN(rowData[1])) {
                   allRows.push(rowData);
                 }
               }
@@ -179,7 +182,7 @@
           }
 
           renderTable();
-          this.value = ""; // Clear file input
+          this.value = "";
         });
 
       function renderTable() {
