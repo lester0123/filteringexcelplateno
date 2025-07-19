@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Excel Upload & Filter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", sans-serif;
+        padding: 2rem;
+        background-color: #f4f7fc;
+        color: #333;
+      }
+
+      h2 {
+        text-align: center;
+        margin-bottom: 1.5rem;
+      }
+
+      input[type="file"] {
+        display: block;
+        margin: 0 auto 1rem auto;
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background-color: #fff;
+        cursor: pointer;
+      }
+
+      #searchInput {
+        display: none;
+        width: 100%;
+        max-width: 500px;
+        margin: 1rem auto;
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        display: block;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+        background-color: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06);
+      }
+
+      th,
+      td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #eee;
+        text-align: left;
+      }
+
+      th {
+        background-color: #007bff;
+        color: #fff;
+        font-weight: 600;
+      }
+
+      tr:hover {
+        background-color: #f1f1f1;
+      }
+
+      #excelTable {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>📥 Excel Uploader & Plate Filter</h2>
+    <input type="file" id="excelFile" accept=".xlsx, .xls" multiple />
+    <input
+      type="text"
+      id="searchInput"
+      placeholder="🔍 Search anything..."
+      onkeyup="filterTable()"
+    />
+
+    <table id="excelTable">
+      <thead>
+        <tr>
+          <th>Numbering</th>
+          <th>Plate No</th>
+          <th>Owner</th>
+          <th>Address</th>
+          <th>Received By</th>
+        </tr>
+      </thead>
+      <tbody id="excelBody"></tbody>
+    </table>
+
+    <script>
+      let processedFiles = new Set();
+
+      document
+        .getElementById("excelFile")
+        .addEventListener("change", async function (e) {
+          const files = Array.from(e.target.files);
+          if (!files.length) return;
+
+          const tbody = document.getElementById("excelBody");
+
+          for (const file of files) {
+            if (processedFiles.has(file.name)) continue;
+
+            const data = await file.arrayBuffer();
+            const workbook = XLSX.read(new Uint8Array(data), { type: "array" });
+
+            for (const sheetName of workbook.SheetNames) {
+              const sheet = workbook.Sheets[sheetName];
+              const range = XLSX.utils.decode_range(sheet["!ref"]);
+
+              for (let row = 3; row <= range.e.r; row++) {
+                const cellA = sheet[XLSX.utils.encode_cell({ c: 0, r: row })]; // A
+                const cellC = sheet[XLSX.utils.encode_cell({ c: 2, r: row })]; // C
+                const cellD = sheet[XLSX.utils.encode_cell({ c: 3, r: row })]; // D
+                const cellG = sheet[XLSX.utils.encode_cell({ c: 6, r: row })]; // G
+                const cellL = sheet[XLSX.utils.encode_cell({ c: 11, r: row })]; // L
+
+                const numbering = cellA ? cellA.v : null;
+                if (numbering === null || isNaN(numbering)) continue;
+
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                <td>${numbering}</td>
+                <td>${cellC ? cellC.v : ""}</td>
+                <td>${cellD ? cellD.v : ""}</td>
+                <td>${cellG ? cellG.v : ""}</td>
+                <td>${cellL ? cellL.v : ""}</td>
+              `;
+                tbody.appendChild(tr);
+              }
+            }
+
+            processedFiles.add(file.name);
+          }
+
+          const table = document.getElementById("excelTable");
+          const searchBox = document.getElementById("searchInput");
+
+          if (tbody.children.length === 0) {
+            table.style.display = "none";
+            searchBox.style.display = "none";
+            alert("No valid data found.");
+          } else {
+            table.style.display = "table";
+            searchBox.style.display = "block";
+          }
+
+          // Reset file input so you can upload the same file again later
+          this.value = "";
+        });
+
+      function filterTable() {
+        const input = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+        const rows = document.querySelectorAll("#excelBody tr");
+
+        rows.forEach((row) => {
+          const text = row.textContent.toLowerCase();
+          row.style.display = text.includes(input) ? "" : "none";
+        });
+      }
+    </script>
+  </body>
+</html>
