@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Excel Upload & Filter</title>
 
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+
     <!-- Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -77,7 +83,7 @@
       .filter-row {
         margin-top: 1rem;
         display: grid;
-        grid-template-columns: repeat(6, 1fr);
+        grid-template-columns: repeat(7, 1fr);
         gap: 10px;
       }
 
@@ -90,6 +96,45 @@
     </style>
   </head>
   <body>
+    <!-- LOGIN MODAL -->
+    <div
+      class="modal fade"
+      id="loginModal"
+      data-bs-backdrop="static"
+      data-bs-keyboard="false"
+      tabindex="-1"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content p-4">
+          <div class="modal-header">
+            <h5 class="modal-title">🔐 Login Required</h5>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="usernameInput" class="form-label">Username</label>
+              <input type="text" class="form-control" id="usernameInput" />
+            </div>
+            <div class="mb-3">
+              <label for="passwordInput" class="form-label">Password</label>
+              <input type="password" class="form-control" id="passwordInput" />
+            </div>
+            <div
+              class="text-danger text-center"
+              id="loginError"
+              style="display: none"
+            >
+              Invalid credentials. Try again.
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary w-100" onclick="validateLogin()">
+              Login
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <h2>📥 Excel Uploader & Filter Table (With Box Number)</h2>
 
     <input type="file" id="excelFile" accept=".xlsx, .xls" multiple />
@@ -106,6 +151,7 @@
         oninput="filterColumn(5)"
         placeholder="🔍 Received By"
       />
+      <input type="text" oninput="filterColumn(6)" placeholder="🔍 Signature" />
     </div>
 
     <table id="excelTable" style="display: none">
@@ -117,12 +163,40 @@
           <th>Owner</th>
           <th>Address</th>
           <th>Received By</th>
+          <th>Signature</th>
         </tr>
       </thead>
       <tbody id="excelBody"></tbody>
     </table>
 
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
     <script>
+      // SHOW MODAL ON LOAD
+      window.addEventListener("DOMContentLoaded", () => {
+        const loginModal = new bootstrap.Modal(
+          document.getElementById("loginModal")
+        );
+        loginModal.show();
+        window.loginModalInstance = loginModal;
+      });
+
+      function validateLogin() {
+        const user = document.getElementById("usernameInput").value.trim();
+        const pass = document.getElementById("passwordInput").value.trim();
+        const error = document.getElementById("loginError");
+
+        if (user === "jhessicaolleres" && pass === "wackychowder1021") {
+          window.loginModalInstance.hide();
+        } else {
+          error.style.display = "block";
+        }
+      }
+
+      // ============================
+      // EXCEL UPLOAD + TABLE LOGIC
+      // ============================
       let allRows = [];
 
       document
@@ -132,6 +206,7 @@
           if (!files.length) return;
 
           allRows = [];
+          document.getElementById("excelBody").innerHTML = "";
 
           for (const file of files) {
             const data = await file.arrayBuffer();
@@ -141,6 +216,22 @@
               const sheet = workbook.Sheets[sheetName];
               const range = XLSX.utils.decode_range(sheet["!ref"]);
 
+              let boxNo = "";
+              for (let r = 0; r <= range.e.r; r++) {
+                const cellB = sheet[XLSX.utils.encode_cell({ c: 1, r })];
+                if (
+                  cellB &&
+                  cellB.v &&
+                  cellB.v.toString().trim() === "From Box Number :"
+                ) {
+                  const cellD = sheet[XLSX.utils.encode_cell({ c: 3, r })];
+                  if (cellD && cellD.v) {
+                    boxNo = cellD.v.toString().trim();
+                  }
+                  break;
+                }
+              }
+
               for (let row = 3; row <= range.e.r; row++) {
                 const getValue = (col) => {
                   const cell =
@@ -148,16 +239,17 @@
                   return cell ? cell.v : "";
                 };
 
-                const rowData = [
-                  sheetName,
-                  getValue(0),
-                  getValue(2),
-                  getValue(3),
-                  getValue(6),
-                  getValue(11),
-                ];
-
-                if (rowData[1] && !isNaN(rowData[1])) {
+                const numbering = getValue(0);
+                if (numbering && !isNaN(numbering)) {
+                  const rowData = [
+                    boxNo,
+                    numbering,
+                    getValue(2),
+                    getValue(3),
+                    getValue(6),
+                    getValue(11),
+                    "", // Signature
+                  ];
                   allRows.push(rowData);
                   appendRowToTable(rowData);
                 }
@@ -194,7 +286,11 @@
 
       function downloadPDF() {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
+        const doc = new jsPDF({
+          orientation: "landscape",
+          unit: "mm",
+          format: "A4",
+        });
 
         const table = document.getElementById("excelTable");
         const rows = Array.from(table.querySelectorAll("tbody tr")).filter(
@@ -213,13 +309,19 @@
             "Owner",
             "Address",
             "Received By",
+            "Signature",
           ],
         ];
 
         doc.setFontSize(14);
-        doc.text("LTO Land Transportation Office Vehicle Plate No.", 105, 15, {
-          align: "center",
-        });
+        doc.text(
+          "LTO Land Transportation Office Vehicle Plate No.",
+          148.5,
+          15,
+          {
+            align: "center",
+          }
+        );
 
         doc.autoTable({
           head: headers,
